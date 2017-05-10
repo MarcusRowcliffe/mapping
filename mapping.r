@@ -85,7 +85,7 @@ addshape <- function(map, coords, type=c("line","point","polygon"), ...){
 }
 
 #Plot complete grid map with optional scale
-gridmap <- function(map, boundary, points, scale.km=NULL){
+mapgrid <- function(map, boundary, points, scale.km=NULL){
   plotmap(map)
   addshape(map, boundary, "poly", col=2)
   addshape(map, points$grid, "point", col=2, pch=16)
