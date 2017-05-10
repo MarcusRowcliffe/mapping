@@ -33,7 +33,6 @@ basemap <- loadmap("basemap.jpg", "Corners.kml")
 boundary <- getXMLcoords("Boundary.kml")
 
 #Create a regular square grid with 60 points within the boundary
-#  (first argument is number of points)
 pnts <- makegrid(basemap, boundary, 60)
 #Check out metrics:
 areaPolygon(boundary)/1e6 #area within the boundary in km2
