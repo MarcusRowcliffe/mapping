@@ -1,2 +1,2 @@
 # mapping
-R tools for mapping and random grid allocation
+R tools for mapping and grid allocation within boundaries
