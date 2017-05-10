@@ -1,2 +1,2 @@
 # mapping
-R tools for selecting and mapping random grids within a boundary
+R tools for selecting and mapping random point grids within boundaries
