@@ -39,12 +39,12 @@ pnts <- makegrid(basemap, boundary, 60)
 areaPolygon(boundary)/1e6 #area within the boundary in km2
 pnts$spacing              #point spacing in m
 #Make map with base, boundary, points and 0.5 km scale bar
-gridmap(basemap, boundary, pnts, 0.5)
+mapgrid(basemap, boundary, pnts, 0.5)
 #Export points for uploading to GPS / Googlemaps
 exportgrid(pnts, "surveypoints.csv")
 
 #ALTERNATIVELY...
 #Grid with fixed 200 m spacing (number of points unpredictable)
 pnts2 <- makegrid(basemap, boundary, space=200)
-gridmap(basemap, boundary, pnts2)
+mapgrid(basemap, boundary, pnts2)
 nrow(pnts2$grid) #Number of points produced
