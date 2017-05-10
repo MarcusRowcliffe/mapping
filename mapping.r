@@ -84,6 +84,15 @@ addshape <- function(map, coords, type=c("line","point","polygon"), ...){
   if(type=="point") points(xy$x, xy$y, ...) else lines(xy$x, xy$y, ...)
 }
 
+#Plot complete grid map with optional scale
+mapgrid <- function(map, boundary, points, scale.km=NULL){
+  plotmap(map)
+  addshape(map, boundary, "poly", col=2)
+  addshape(map, points$grid, "point", col=2, pch=16)
+  if(!is.null(scale.km))
+    addscale(map, paste(scale.km, "km"), scale.km*1000, lwd=3)
+}
+
 #Rotate coords dataframe by angle around centroid (if NULL, centroid of coords is used)
 rotate <- function(coords, angle, centroid=NULL){
   if(is.null(centroid)) centroid <- apply(coords, 2, mean)
@@ -112,7 +121,7 @@ makegrid.s <- function(spacing, map, poly, adj=list(x=0,y=0), angle=0){
   xy <- data.frame(x=rep(x, length(y)), y=rep(y, each=length(x)))
   inout <- pnt.in.poly(xy, xypoly)
   xy <- rotate(xy[inout$pip==1, ], angle, apply(xypoly, 2, mean))
-  project(xy, map, "longlat")
+  list(grid=project(xy, map, "longlat"), spacing=spacing)
 }
 
 #Generate a grid of n points on a map within bounds given by poly
@@ -123,9 +132,18 @@ makegrid.n <- function(n, map, poly, angle=0)
   repeat{
     adj <- list(x=runif(1,0,1), y=runif(1,0,1))
     grd <- makegrid.s(spc, map, poly, adj, angle)
-    nr <- nrow(grd)
+    nr <- nrow(grd$grid)
     if(nr==n) break else spc <- spc * (nr/n)^0.5
   }
-  list(grid=grd, spacing=spc)
+  grd
 }
 
+makegrid <- function(map, boundary, n=NULL, space=NULL, angle=0, adj=list(x=0, y=0)){
+  if(is.null(n) & is.null(space)) stop("Either n or space argument must be given")
+  if(!is.null(n) & !is.null(space)) stop("Either n or space argument must be given, not both")
+  if(is.null(n)) makegrid.s(space, map, boundary, adj, angle) else
+    makegrid.n(n, map, boundary, angle)
+}
+
+exportgrid <- function(points, file)
+  write.csv(data.frame(id=1:nrow(points$grid), points$grid), file, row.names=F)
