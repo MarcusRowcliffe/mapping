@@ -1,3 +1,4 @@
+#What's this package about?
 require(XML) #for xmlToList and xmlParse
 require(jpeg) #for readJPEG and rasterImage
 require(geosphere) #for distm and areaPolygon
