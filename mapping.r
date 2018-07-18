@@ -30,7 +30,7 @@ loadmap <- function(jpeg, cornerkml){
   cnr <- data.frame(long=sort(cnr[,1]), lat=sort(cnr[,2]))
   xycnr <- data.frame(x=c(1,res[2]), y=c(1,res[1]))
   xyrng <- as.list(apply(xycnr,2,diff))
-  xm <- distm(cnr[1,], as.matrix(cnr)[2:3])
+  xm <- c(distm(cnr[1,], as.matrix(cnr)[2:3]))
   pixpm <- xyrng$x/xm
   list(jpg=jpg, cnr=cnr, xycnr=xycnr, xyrng=xyrng, pixpm=pixpm)
 }
