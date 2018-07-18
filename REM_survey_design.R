@@ -29,21 +29,27 @@ setwd("C:/Users/Rowcliffe.M/Documents/GitHub/mapping")
 source("mapping.r")
 
 #Load mapping files (.jpg base plus georeferencing corners and boundary info)
-basemap <- loadmap("basemap.jpg", "Corners.kml")
-boundary <- getXMLcoords("Boundary.kml")
+setwd("C:/Users/rowcliffe.m/Documents/CameraTrapping/Hedgehogs/RichmondPark")
+baseJPG <- "RichmondPark_base.jpg"
+corKML <- "RichmondPark_corners.kml"
+bouKML <- "RichmondPark_boundary.kml"
 
-#Create a regular square grid with 60 points within the boundary
-pnts <- makegrid(basemap, boundary, 60)
+basemap <- loadmap(baseJPG, corKML)
+boundary <- getXMLcoords(bouKML)
+
+#Create a regular square grid with n points within the boundary
+pnts <- makegrid(basemap, boundary, 200)
 #Check out metrics:
 areaPolygon(boundary)/1e6 #area within the boundary in km2
 pnts$spacing              #point spacing in m
-#Make map with base, boundary, points and 0.5 km scale bar
-mapgrid(basemap, boundary, pnts, 0.5)
+#Make map with base, boundary, points and x km scale bar
+mapgrid(basemap, boundary, pnts, 1)
 #Export points for uploading to GPS / Googlemaps
-exportgrid(pnts, "surveypoints.csv")
+exportgrid(pnts, "RichmondPark_200points.csv")
 
 #ALTERNATIVELY...
-#Grid with fixed 200 m spacing (number of points unpredictable)
-pnts2 <- makegrid(basemap, boundary, space=200)
+#Grid with fixed 150 m spacing (number of points unpredictable)
+pnts2 <- makegrid(basemap, boundary, space=150)
 mapgrid(basemap, boundary, pnts2)
 nrow(pnts2$grid) #Number of points produced
+exportgrid(pnts2, "surveypoints.csv")
