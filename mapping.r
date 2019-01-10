@@ -63,12 +63,12 @@ translate <- function(coords, oldrange, newrange)
 project <- function(coords, map, to=c("xy", "longlat")){
   to <- match.arg(to)
   if(to=="xy"){
-    if(any(names(coords)!=c("long", "lat"))) stop("Column headings for coords must be long and lat")
+    if(!all(c("long", "lat") %in% names(coords))) stop("Column headings for coords must be long and lat")
     res <- data.frame(translate(coords$long, map$cnr$long, map$xycnr$x),
                       translate(coords$lat, map$cnr$lat, map$xycnr$y) )
     names(res) <- c("x", "y")
   } else {
-    if(any(names(coords)!=c("x", "y"))) stop("Column headings for coords must be x and y")
+    if(!all(c("x", "y") %in% names(coords))) stop("Column headings for coords must be x and y")
     res <- data.frame(translate(coords$x, map$xycnr$x, map$cnr$long),
                       translate(coords$y, map$xycnr$y, map$cnr$lat) )
     names(res) <- c("long", "lat")
@@ -77,18 +77,21 @@ project <- function(coords, map, to=c("xy", "longlat")){
 }
 
 #Add a point, line or polygon to a map given coords dataframe
-addshape <- function(map, coords, type=c("line","point","polygon"), ...){
+addshape <- function(map, coords, type=c("point","polygon","line"), plotpar){
   type <- match.arg(type)
   xy <- project(coords, map)
   if(type=="polygon") xy <- rbind(xy,xy[1,])
-  if(type=="point") points(xy$x, xy$y, ...) else lines(xy$x, xy$y, ...)
+  xyarg <- list(x=xy$x, y=xy$y)
+  if(type=="point") do.call(points, c(xyarg, plotpar)) else 
+    do.call(lines, c(xyarg, plotpar))
 }
 
 #Plot complete grid map with optional scale
-mapgrid <- function(map, boundary, points, scale.km=NULL){
+mapgrid <- function(map, points, boundary=NULL, scale.km=NULL,
+                    pnt.par=list(col="white", pch=16), bnd.par=list(col="white")){
   plotmap(map)
-  addshape(map, boundary, "poly", col=2)
-  addshape(map, points$grid, "point", col=2, pch=16)
+  if(!is.null(boundary)) addshape(map, boundary, "poly", bnd.par)
+  addshape(map, points, "point", pnt.par)
   if(!is.null(scale.km))
     addscale(map, paste(scale.km, "km"), scale.km*1000, lwd=3)
 }
