@@ -1,4 +1,4 @@
-#Notes on creating kml and raster image files in Google Earth and e.g. Paint
+##Notes on creating kml and raster image files in Google Earth and e.g. Paint
 
 #In Google Earth:
 #1. Zoom to study area
