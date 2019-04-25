@@ -82,8 +82,8 @@ addshape <- function(map, coords, type=c("point","polygon","line"), plotpar){
   xy <- project(coords, map)
   if(type=="polygon") xy <- rbind(xy,xy[1,])
   xyarg <- list(x=xy$x, y=xy$y)
-  if(type=="point") do.call(points, c(xyarg, plotpar)) else 
-    do.call(lines, c(xyarg, plotpar))
+  if(type=="point") do.call(graphics::points, c(xyarg, plotpar)) else 
+    do.call(graphics::lines, c(xyarg, plotpar))
 }
 
 #Plot complete grid map with optional scale
