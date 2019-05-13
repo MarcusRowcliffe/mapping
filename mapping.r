@@ -55,13 +55,22 @@ addscale <- function(map, label, metres, x=0, y=-0.1, offset=0.05, ...){
   text(mean(xx), yy+offset*map$xyrng$y, label, xpd=T, ...)
 }
 
+#Takes a dataframe of long/lat data and returns the corner co-ordinates in both long/lat and x/y
+makemap <- function(dat){
+  rng <- data.frame(apply(dat,2,range))
+  xyrng <- as.data.frame(rbind(0, c(distm(rng[1,], matrix(as.matrix(rng)[c(2,1,3,4)], nrow=2)))))
+  names(xyrng) <- c("x","y")
+  list(cnr=rng, xycnr=xyrng)
+}
+
 #Project coords dataframe either way between xy and longlat given map created with loadmap
-project <- function(coords, map, to=c("xy", "longlat")){
+project <- function(coords, map=NULL, to=c("xy", "longlat")){
   
   #Translate coords dataframe from oldrange to newrange
   translate <- function(coords, oldrange, newrange) 
     newrange[1] + diff(newrange) * (coords-oldrange[1])/diff(oldrange)
   
+  if(is.null(map)) map <- makemap(coords)
   to <- match.arg(to)
   if(to=="xy"){
     if(!all(c("long", "lat") %in% names(coords))) stop("Column headings for coords must be long and lat")
@@ -87,14 +96,30 @@ addshape <- function(map, coords, type=c("point","polygon","line"), plotpar){
     do.call(graphics::lines, c(xyarg, plotpar))
 }
 
-#Plot complete grid map with optional scale
-mapgrid <- function(map, points, boundary=NULL, scale.km=NULL,
-                    pnt.par=list(col="white", pch=16), bnd.par=list(col="white")){
-  plotmap(map)
-  if(!is.null(boundary)) addshape(map, boundary, "poly", bnd.par)
-  addshape(map, points, "point", pnt.par)
-  if(!is.null(scale.km))
-    addscale(map, paste(scale.km, "km"), scale.km*1000, lwd=3)
+#Plot grid map with optional boundary, basemap and scale
+mapgrid <- function(grid, boundary=NULL, map=NULL, scale.km=NULL,
+                    point.par=list(col="lightblue", pch=16), line.par=list(col="lightblue")){
+  if(is.null(map)){
+    if(!is.null(boundary)){
+      map <- makemap(boundary)
+      xygrid <- project(grid, map)/1000
+      xypoly <- project(boundary)/1000
+      xypoly <- list(x=xypoly$x, y=xypoly$y)
+      do.call(graphics::plot, c(xypoly, type="n", asp=1, xlab="km", ylab="km"))
+      do.call(graphics::lines, c(xypoly, line.par))
+    } else{
+      xygrid <- project(grid)/1000
+      do.call(graphics::plot, c(xygrid, type="n", asp=1, xlab="km", ylab="km"))
+    }
+    xygrid <- list(x=xygrid$x, y=xygrid$y)
+    do.call(graphics::points, c(xygrid, point.par))
+  } else{
+    plotmap(map)
+    if(!is.null(boundary)) addshape(map, boundary, "poly", line.par)
+    addshape(map, grid, "point", point.par)
+    if(!is.null(scale.km))
+      addscale(map, paste(scale.km, "km"), scale.km*1000, lwd=3)
+  }
 }
 
 #Rotate coords dataframe by angle around centroid (if NULL, centroid of coords is used)
@@ -113,16 +138,18 @@ rotate <- function(coords, angle, centroid=NULL){
 #Generate a grid of points on a map within bounds given by poly and with given spacing
 #adj shifts grid starting point by given proportions of spacingl; default is bottom left corner of bounding box
 #angle is an optional rotation angle; default aligns grid N-S/E-W
-makegrid.s <- function(spacing, map, poly, adj=list(x=0,y=0), angle=0){
-  xyspacing <- spacing * map$pixpm
-  rng <- data.frame(apply(poly,2,range))
-  xyrng <- project(rng, map)
+makegrid.s <- function(spacing, poly, adj=list(x=0,y=0), angle=0){
+  #  rng <- data.frame(apply(poly,2,range))
+  #  xyrng <- as.data.frame(rbind(0, c(distm(rng[1,], matrix(as.matrix(rng)[c(2,1,3,4)], nrow=2)))))
+  #  names(xyrng) <- c("x","y")
+  #  map <- list(cnr=rng, xycnr=xyrng)
+  #  rm(map)
+  map <- makemap(poly)
   xypoly <- rotate(project(poly, map), -angle)
-  xsq <- c(xyrng$x[1]+adj$x*xyspacing, xyrng$x[2])
-  ysq <- c(xyrng$y[1]+adj$y*xyspacing, xyrng$y[2])
-  x <- seq(min(xsq), max(xsq), xyspacing)
-  y <- seq(min(ysq), max(ysq), xyspacing)
-  xy <- data.frame(x=rep(x, length(y)), y=rep(y, each=length(x)))
+  x <- seq(0, map$xycnr$x[2], spacing)
+  y <- seq(0, map$xycnr$y[2], spacing)
+  xy <- expand.grid(x, y)
+  names(xy) <- c("x", "y")
   inout <- pnt.in.poly(xy, xypoly)
   xy <- rotate(xy[inout$pip==1, ], angle, apply(xypoly, 2, mean))
   list(grid=project(xy, map, "longlat"), spacing=spacing)
@@ -130,23 +157,24 @@ makegrid.s <- function(spacing, map, poly, adj=list(x=0,y=0), angle=0){
 
 #Generate a grid of n points on a map within bounds given by poly
 #angle is an optional rotation angle; default aligns grid N-S/E-W
-makegrid.n <- function(n, map, poly, angle=0)
-{ xyrng <- project(data.frame(apply(poly,2,range)), map)
-  spc <- sqrt(prod(apply(xyrng, 2, diff))/n) / map$pixpm
+makegrid.n <- function(n, poly, angle=0){
+  rng <- data.frame(apply(poly,2,range))
+  xyrng <- as.data.frame(rbind(0, c(distm(rng[1,], matrix(as.matrix(rng)[c(2,1,3,4)], nrow=2)))))
+  spc <- sqrt(prod(apply(xyrng, 2, diff))/n)
   repeat{
     adj <- list(x=runif(1,0,1), y=runif(1,0,1))
-    grd <- makegrid.s(spc, map, poly, adj, angle)
+    grd <- makegrid.s(spc, poly, adj, angle)
     nr <- nrow(grd$grid)
     if(nr==n) break else spc <- spc * (nr/n)^0.5
   }
   grd
 }
 
-makegrid <- function(map, boundary, n=NULL, space=NULL, angle=0, adj=list(x=0, y=0)){
+makegrid <- function(boundary, n=NULL, space=NULL, angle=0, adj=list(x=0, y=0)){
   if(is.null(n) & is.null(space)) stop("Either n or space argument must be given")
   if(!is.null(n) & !is.null(space)) stop("Either n or space argument must be given, not both")
-  if(is.null(n)) makegrid.s(space, map, boundary, adj, angle) else
-    makegrid.n(n, map, boundary, angle)
+  if(is.null(n)) makegrid.s(space, boundary, adj, angle) else
+    makegrid.n(n, boundary, angle)
 }
 
 exportgrid <- function(points, file)
