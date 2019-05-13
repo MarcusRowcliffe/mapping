@@ -55,12 +55,13 @@ addscale <- function(map, label, metres, x=0, y=-0.1, offset=0.05, ...){
   text(mean(xx), yy+offset*map$xyrng$y, label, xpd=T, ...)
 }
 
-#Translate coords dataframe from oldrange to newrange
-translate <- function(coords, oldrange, newrange) 
-  newrange[1] + diff(newrange) * (coords-oldrange[1])/diff(oldrange)
-
 #Project coords dataframe either way between xy and longlat given map created with loadmap
 project <- function(coords, map, to=c("xy", "longlat")){
+  
+  #Translate coords dataframe from oldrange to newrange
+  translate <- function(coords, oldrange, newrange) 
+    newrange[1] + diff(newrange) * (coords-oldrange[1])/diff(oldrange)
+  
   to <- match.arg(to)
   if(to=="xy"){
     if(!all(c("long", "lat") %in% names(coords))) stop("Column headings for coords must be long and lat")
