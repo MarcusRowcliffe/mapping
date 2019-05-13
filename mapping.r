@@ -150,3 +150,13 @@ makegrid <- function(map, boundary, n=NULL, space=NULL, angle=0, adj=list(x=0, y
 
 exportgrid <- function(points, file)
   write.csv(data.frame(id=1:nrow(points$grid), points$grid), file, row.names=F)
+
+#Assigns points from a grid to a given number of phases with regular stepwise progression
+#Requires that the grid is perfectly aligned N-S-E-W
+phasegrid <- function(points, phases=2){
+  latref <- as.numeric(as.factor(as.character((points$grid$lat)))) %% phases
+  longref <- as.numeric(as.factor(as.character((points$grid$long)))) %% phases
+  phase <- (latref+longref) %% phases + 1
+  points$grid <- cbind(points$grid, phase)
+  points
+}
