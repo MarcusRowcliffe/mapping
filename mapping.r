@@ -136,45 +136,40 @@ rotate <- function(coords, angle, centroid=NULL){
 }
 
 #Generate a grid of points on a map within bounds given by poly and with given spacing
-#adj shifts grid starting point by given proportions of spacingl; default is bottom left corner of bounding box
-#angle is an optional rotation angle; default aligns grid N-S/E-W
-makegrid.s <- function(spacing, poly, adj=list(x=0,y=0), angle=0){
-  #  rng <- data.frame(apply(poly,2,range))
-  #  xyrng <- as.data.frame(rbind(0, c(distm(rng[1,], matrix(as.matrix(rng)[c(2,1,3,4)], nrow=2)))))
-  #  names(xyrng) <- c("x","y")
-  #  map <- list(cnr=rng, xycnr=xyrng)
-  #  rm(map)
+#offset shifts grid starting point by given proportions of spacingl; default is bottom left corner of bounding box
+#rotation is an optional rotation angle; default aligns grid N-S/E-W
+makegrid.s <- function(spacing, poly, offset=list(x=0,y=0), rotation=0){
   map <- makemap(poly)
-  xypoly <- rotate(project(poly, map), -angle)
-  x <- seq(0, map$xycnr$x[2], spacing)
-  y <- seq(0, map$xycnr$y[2], spacing)
+  xypoly <- rotate(project(poly, map), -rotation)
+  x <- seq(0, map$xycnr$x[2], spacing) + offset$x
+  y <- seq(0, map$xycnr$y[2], spacing) + offset$y
   xy <- expand.grid(x, y)
   names(xy) <- c("x", "y")
   inout <- pnt.in.poly(xy, xypoly)
-  xy <- rotate(xy[inout$pip==1, ], angle, apply(xypoly, 2, mean))
+  xy <- rotate(xy[inout$pip==1, ], rotation, apply(xypoly, 2, mean))
   list(grid=project(xy, map, "longlat"), spacing=spacing)
 }
 
 #Generate a grid of n points on a map within bounds given by poly
-#angle is an optional rotation angle; default aligns grid N-S/E-W
-makegrid.n <- function(n, poly, angle=0){
+#rotation is an optional rotation angle; default aligns grid N-S/E-W
+makegrid.n <- function(n, poly, rotation=0){
   rng <- data.frame(apply(poly,2,range))
   xyrng <- as.data.frame(rbind(0, c(distm(rng[1,], matrix(as.matrix(rng)[c(2,1,3,4)], nrow=2)))))
   spc <- sqrt(prod(apply(xyrng, 2, diff))/n)
   repeat{
-    adj <- list(x=runif(1,0,1), y=runif(1,0,1))
-    grd <- makegrid.s(spc, poly, adj, angle)
+    offset <- list(x=runif(1,0,1)*spc, y=runif(1,0,1)*spc)
+    grd <- makegrid.s(spc, poly, offset, rotation)
     nr <- nrow(grd$grid)
     if(nr==n) break else spc <- spc * (nr/n)^0.5
   }
   grd
 }
 
-makegrid <- function(boundary, n=NULL, space=NULL, angle=0, adj=list(x=0, y=0)){
+makegrid <- function(boundary, n=NULL, space=NULL, offset=list(x=0, y=0), rotation=0){
   if(is.null(n) & is.null(space)) stop("Either n or space argument must be given")
   if(!is.null(n) & !is.null(space)) stop("Either n or space argument must be given, not both")
-  if(is.null(n)) makegrid.s(space, boundary, adj, angle) else
-    makegrid.n(n, boundary, angle)
+  if(is.null(n)) makegrid.s(space, boundary, offset, rotation) else
+    makegrid.n(n, boundary, rotation)
 }
 
 exportgrid <- function(points, file)
