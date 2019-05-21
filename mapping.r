@@ -172,6 +172,14 @@ makegrid <- function(boundary, n=NULL, space=NULL, offset=list(x=0, y=0), rotati
     makegrid.n(n, boundary, rotation)
 }
 
+#Returns binary flagging whether long/lat points are within long/lat a boundary (poly)
+is.in <- function(points, poly){
+  pt <- points$grid [,c("long","lat")]
+  xy <- project(pt, makemap(poly))/1000
+  bxy <- project(poly, makemap(poly))/1000
+  pnt.in.poly(xy, bxy)$pip
+}
+
 exportgrid <- function(points, file)
   write.csv(data.frame(id=1:nrow(points$grid), points$grid), file, row.names=F)
 
