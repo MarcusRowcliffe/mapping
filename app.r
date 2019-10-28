@@ -1,3 +1,7 @@
+library(shiny)
+library(RgoogleMaps)
+source("mapping.r")
+
 ui <- fluidPage(
   titlePanel("Generate a fixed number of grid points within a boundary"),
   sidebarLayout(
