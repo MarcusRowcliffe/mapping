@@ -10,15 +10,17 @@ ui <- fluidPage(
                 multiple = FALSE,
                 accept = ".kml"),
       numericInput("lwd", "Boundary thickness", 1),
+      sliderInput("mapsz", "Map size", 0.5, 2, 1, 0.1),
+      sliderInput("mapzm", "Map zoom", 0, 5, 0.05, 0.05),
       tags$hr(),
-      numericInput("npnts", "Number of points", 20),
-      actionButton("go", "Generate grid points"),
+      numericInput("npnts", "Number of points", 50),
+      actionButton("go", "Generate grid"),
       tags$hr(),
       downloadButton("locationdata.csv", "Download locations")
     ),
     mainPanel(
-      fluidRow(column(6, textOutput("area")),
-               column(6, textOutput("space"))
+      fluidRow(column(5, textOutput("area")),
+               column(5, textOutput("space"))
       ),
       fluidRow(imageOutput("map"))
     )  
@@ -28,28 +30,28 @@ ui <- fluidPage(
 server <- function(input, output) {
   bdy <- reactive({
     req(input$file)
-    getXMLcoords(input$file$datapath)
+    res <- getXMLcoords(input$file$datapath)
+    rbind(res, res[1, ])
   })
-  
+
   pnts <- eventReactive(input$go, {
-    makegrid(bdy(), input$npnts)
+    n <- round(input$npnts)
+    if(is.na(n) | n<2) n <- 2
+    makegrid(bdy(), n)
   })
   
   output$map <- renderImage({
-    mids <- apply(bdy(), 2, mean)
-    mids <- c(lat=mids["lat"], lon=mids["long"])
     rngs <- data.frame(apply(bdy(), 2, range))
-    loncnr <- rngs$lon + diff(rngs$lon)*0.05*c(-1,1)
-    latcnr <- rngs$lat + diff(rngs$lat)*0.05*c(-1,1)
-    lat <- c(bdy()$lat, bdy()$lat[1])
-    lon <- c(bdy()$long, bdy()$long[1])
-    basemap <- GetMap.bbox(loncnr, latcnr, maptype="satellite", MINIMUMSIZE=TRUE)
-    png('MyTile.png',type='cairo-png')
-    PlotOnStaticMap(basemap, TrueProj = FALSE, 
-                    lat=lat, lon=lon, FUN=lines, 
-                    lwd=input$lwd, col=2)
-    PlotOnStaticMap(basemap, TrueProj = FALSE, add=TRUE, 
-                    lat=pnts()$grid$lat, lon=pnts()$grid$lon, FUN=points, 
+    cnrs <- data.frame(lon=rngs$lon + diff(rngs$lon)*input$mapzm*c(-1,1),
+                       lat=rngs$lat + diff(rngs$lat)*input$mapzm*c(-1,1))
+    basemap <- GetMap.bbox(cnrs$lon, cnrs$lat, MINIMUMSIZE=TRUE)
+    sz <- input$mapsz * basemap$size
+    png("MyTile.png", width=sz[1], height=sz[2], type="cairo-png")
+    PlotOnStaticMap(basemap, TrueProj = FALSE,
+                    lat=bdy()$lat, lon=bdy()$long,
+                    FUN=lines, lwd=input$lwd, col=2)
+    PlotOnStaticMap(basemap, TrueProj = FALSE, add=TRUE,
+                    lat=pnts()$grid$lat, lon=pnts()$grid$lon, 
                     pch=16, col=2)
     dev.off()
     list(src="MyTile.png")
@@ -74,5 +76,3 @@ server <- function(input, output) {
 }
 
 shinyApp(ui, server)
-
-
