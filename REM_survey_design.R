@@ -31,6 +31,7 @@ corKML2 <- "C:/Users/rowcliffe.m/Documents/CameraTrapping/Hedgehogs/BushyPark17/
 corKML3 <- "C:/Users/rowcliffe.m/Documents/CameraTrapping/Hedgehogs/BushyPark17/Corners3.kml"
 corKML4 <- "C:/Users/rowcliffe.m/Documents/CameraTrapping/Hedgehogs/BushyPark17/Corners4.kml"
 bouKML <- "C:/Users/rowcliffe.m/Documents/CameraTrapping/Hedgehogs/BushyPark17/boundary.kml"
+bouKML <- "C:/Users/rowcliffe.m/OneDrive - Zoological Society of London/CameraTrapping/Hedgehogs/BushyPark17/boundary.kml"
 
 basemap1 <- loadmap(baseJPG, corKML1)
 basemap2 <- loadmap(baseJPG, corKML2)
@@ -41,7 +42,7 @@ boundary <- getXMLcoords(bouKML)
 areaPolygon(boundary)/1e6 #area within the boundary in km2
 
 #Create a grid with n points within the boundary...
-pnts1 <- makegrid(basemap1, boundary, 20)
+pnts1 <- makegrid(boundary, 0)
 pnts1$spacing #point spacing in m
 #...or create grid with fixed 150 m spacing...
 pnts2 <- makegrid(basemap1, boundary, space=150)
