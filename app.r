@@ -7,11 +7,14 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       fileInput("file", "Choose a kml File", multiple = FALSE, accept = ".kml"),
-      numericInput("npnts", "Number of points (min 2)", 50),
+      radioButtons("mode", NULL, list("Fixed number", "Fixed spacing"), inline=TRUE),
+      conditionalPanel(condition = "input.mode=='Fixed number'",
+                       numericInput("npnts", "Number of points", 50)),
+      conditionalPanel(condition = "input.mode=='Fixed spacing'",
+                       numericInput("spcng", "Point spacing (km)", 1)),
       sliderInput("rotn", "Grid orientation", -45, 45, 0),
       actionButton("go", "Generate grid"),
       tags$hr(),
-      numericInput("lwd", "Boundary thickness", 1),
       sliderInput("mapsz", "Map size", 0.5, 2, 1, 0.1),
       sliderInput("mapzm", "Map zoom", 0, 5, 0.05, 0.05),
       tags$hr(),
@@ -34,9 +37,16 @@ server <- function(input, output) {
   })
 
   pnts <- eventReactive(input$go, {
-    n <- round(input$npnts)
-    if(is.na(n) | n<2) return(NULL) else
-    makegrid(bdy(), n, rotation=input$rotn)
+    if(input$mode=="Fixed number"){
+      n <- round(input$npnts)
+      if(is.na(n) | n<2) return(NULL) else
+      return(makegrid(bdy(), n, rotation=input$rotn))
+    } else
+    if(input$mode=="Fixed spacing"){
+      s <- input$spcng
+      if(is.na(s) | s<=0) return(NULL) else
+      return(makegrid(bdy(), space=s*1000, rotation=input$rotn))
+    }
   })
   
   output$map <- renderImage({
@@ -48,7 +58,7 @@ server <- function(input, output) {
     png("MyTile.png", width=sz[1], height=sz[2], type="cairo-png")
     PlotOnStaticMap(basemap, TrueProj = FALSE,
                     lat=bdy()$lat, lon=bdy()$long,
-                    FUN=lines, lwd=input$lwd, col=2)
+                    FUN=lines, lwd=2, col=2)
     if(!is.null(pnts()))
        PlotOnStaticMap(basemap, TrueProj = FALSE, add=TRUE,
                        lat=pnts()$grid$lat, lon=pnts()$grid$lon, 
@@ -62,7 +72,9 @@ server <- function(input, output) {
   })
   
   output$space <- renderText({
-    paste("Point spacing:", round(pnts()$spacing/1e3, 2), "km")
+    if(input$mode=="Fixed number")
+      paste("Point spacing:", round(pnts()$spacing/1e3, 2), "km") else
+      paste("Point number:", nrow(pnts()$grid))
   })
   
   output$locationdata.csv <- downloadHandler(
