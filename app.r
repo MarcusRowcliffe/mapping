@@ -3,7 +3,22 @@ library(RgoogleMaps)
 source("mapping.r")
 
 ui <- fluidPage(
-  titlePanel("Generate a regular grid of points within a boundary"),
+  titlePanel("Grid maker"),
+  fluidRow(
+    column(12,
+           p("This app generates a regular grid of points with randomised starting point 
+             within a boundary. The boundary must be supplied as a .kml polygon file, 
+             which can be created in Google Earth Pro:"),
+           p("1. Zoom to your region of interest"),
+           p("2. Right-click on My Places in the Places pane -> Add -> Polygon"),
+           p("3. Enter a name and digitise your site boundary on the map -> OK"),
+           p("4. Right-click on the resulting polygon in the Places pane -> Save Place As -> 
+             choose directory, enter a file name and select Save as type Kml (*.kml) -> Save"),
+           p("Once the boundary polygon has been uploaded you can generate and inspect a 
+             grid of points by clicking the Generate grid button. You can then download 
+             the point locations (long/lat) by clicking the download button.")
+    )
+  ),
   sidebarLayout(
     sidebarPanel(
       fileInput("file", "Choose a kml File", multiple = FALSE, accept = ".kml"),
