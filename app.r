@@ -8,6 +8,7 @@ ui <- fluidPage(
     sidebarPanel(
       fileInput("file", "Choose a kml File", multiple = FALSE, accept = ".kml"),
       numericInput("npnts", "Number of points (min 2)", 50),
+      sliderInput("rotn", "Grid orientation", -45, 45, 0),
       actionButton("go", "Generate grid"),
       tags$hr(),
       numericInput("lwd", "Boundary thickness", 1),
@@ -35,7 +36,7 @@ server <- function(input, output) {
   pnts <- eventReactive(input$go, {
     n <- round(input$npnts)
     if(is.na(n) | n<2) return(NULL) else
-    makegrid(bdy(), n)
+    makegrid(bdy(), n, rotation=input$rotn)
   })
   
   output$map <- renderImage({
