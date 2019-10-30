@@ -141,8 +141,8 @@ rotate <- function(coords, angle, centroid=NULL){
 makegrid.s <- function(spacing, poly, offset=list(x=0,y=0), rotation=0){
   map <- makemap(poly)
   xypoly <- rotate(project(poly, map), -rotation)
-  x <- seq(0, map$xycnr$x[2], spacing) + offset$x
-  y <- seq(0, map$xycnr$y[2], spacing) + offset$y
+  x <- seq(min(xypoly$x), max(xypoly$x), spacing) + offset$x
+  y <- seq(min(xypoly$y), max(xypoly$y), spacing) + offset$x
   xy <- expand.grid(x, y)
   names(xy) <- c("x", "y")
   inout <- pnt.in.poly(xy, xypoly)
