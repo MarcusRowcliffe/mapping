@@ -6,15 +6,13 @@ ui <- fluidPage(
   titlePanel("Generate a fixed number of grid points within a boundary"),
   sidebarLayout(
     sidebarPanel(
-      fileInput("file", "Choose a kml File",
-                multiple = FALSE,
-                accept = ".kml"),
+      fileInput("file", "Choose a kml File", multiple = FALSE, accept = ".kml"),
+      numericInput("npnts", "Number of points (min 2)", 50),
+      actionButton("go", "Generate grid"),
+      tags$hr(),
       numericInput("lwd", "Boundary thickness", 1),
       sliderInput("mapsz", "Map size", 0.5, 2, 1, 0.1),
       sliderInput("mapzm", "Map zoom", 0, 5, 0.05, 0.05),
-      tags$hr(),
-      numericInput("npnts", "Number of points", 50),
-      actionButton("go", "Generate grid"),
       tags$hr(),
       downloadButton("locationdata.csv", "Download locations")
     ),
@@ -36,7 +34,7 @@ server <- function(input, output) {
 
   pnts <- eventReactive(input$go, {
     n <- round(input$npnts)
-    if(is.na(n) | n<2) n <- 2
+    if(is.na(n) | n<2) return(NULL) else
     makegrid(bdy(), n)
   })
   
@@ -50,9 +48,10 @@ server <- function(input, output) {
     PlotOnStaticMap(basemap, TrueProj = FALSE,
                     lat=bdy()$lat, lon=bdy()$long,
                     FUN=lines, lwd=input$lwd, col=2)
-    PlotOnStaticMap(basemap, TrueProj = FALSE, add=TRUE,
-                    lat=pnts()$grid$lat, lon=pnts()$grid$lon, 
-                    pch=16, col=2)
+    if(!is.null(pnts()))
+       PlotOnStaticMap(basemap, TrueProj = FALSE, add=TRUE,
+                       lat=pnts()$grid$lat, lon=pnts()$grid$lon, 
+                       pch=16, col=2)
     dev.off()
     list(src="MyTile.png")
   })
