@@ -9,17 +9,17 @@ ui <- fluidPage(
     sidebarPanel(
       p("This app generates a regular grid of points with a randomised 
         starting point within a boundary. The boundary must be supplied 
-        as a .kml polygon file (click the ? button below for instructions 
+        as a .kml polygon file (click the KML Help button below for instructions 
         on how to do this in Google Earth Pro). Once the boundary polygon 
         has been uploaded you can generate and inspect a grid of points by 
         clicking the Generate grid button. You can then download the point 
         long/lat locations by clicking the download button."),
-      actionButton("howtodig", "?"),
+      actionButton("howtodig", "KML Help"),
       p(), tags$hr(), p(),
       fileInput("file", "Choose a kml File", multiple = FALSE, accept = ".kml"),
       radioButtons("mode", NULL, list("Fixed number", "Fixed spacing"), inline=TRUE),
       fluidRow(column(4, conditionalPanel(condition = "input.mode=='Fixed number'",
-                                          numericInput("npnts", "Number of points", 50)),
+                                          numericInput("npnts", "Number of points", 50, step=1)),
                       conditionalPanel(condition = "input.mode=='Fixed spacing'",
                                        numericInput("spcng", "Point spacing (km)", 1))),
                column(8, sliderInput("rotn", "Grid orientation", -45, 45, 0))
@@ -30,7 +30,7 @@ ui <- fluidPage(
       ),
       tags$hr(),
       textOutput("area"),
-      textOutput("space")
+      textOutput("info")
     ),
     mainPanel(
       leafletOutput("map", height=700)
@@ -47,7 +47,7 @@ server <- function(input, output, session) {
       p("4. Right-click on the resulting polygon in the Places pane -> Save Place As -> 
         choose directory, enter a file name and select Save as type Kml (*.kml) -> Save"),
       title="How to create and export a polygon kml file in Google Earth Pro",
-      size="s", easyClose = TRUE, footer = NULL
+      easyClose = TRUE, footer = NULL
     ))
   })
   
@@ -59,18 +59,20 @@ server <- function(input, output, session) {
 
   pnt <- eventReactive(input$go, {
     if(input$mode=="Fixed number"){
-      n <- round(input$npnts)
-      if(is.na(n) | n<2) return(NULL) else
-        return(makegrid(bdy(), n, rotation=input$rotn))
+      n <- input$npnts
+      if(is.na(n) | n<2) res <- NULL else
+        res <- makegrid(bdy(), n, rotation=input$rotn)
+      updateNumericInput(session, "spcng", value=round(res$spacing/1000, 3))
+      res
     } else
       if(input$mode=="Fixed spacing"){
         s <- input$spcng
-        if(is.na(s) | s<=0) return(NULL) else
-          return(makegrid(bdy(), space=s*1000, rotation=input$rotn))
+        if(is.na(s) | s<=0) res <- NULL else
+          res <- makegrid(bdy(), space=s*1000, rotation=input$rotn)
+        updateNumericInput(session, "npnts", value=nrow(res$grid))
+        res
       }
   })
-  
-  observeEvent(input$mode, {pnt <- NULL})
   
   output$map <- renderLeaflet({
     rng <- apply(bdy(), 2, range)
@@ -93,10 +95,11 @@ server <- function(input, output, session) {
     paste("Covered area:", round(areaPolygon(bdy())/1e6, 3), "sq km")
   })
   
-  output$space <- renderText({
+  output$info <- renderText({
     if(input$mode=="Fixed number")
       paste("Point spacing:", round(pnt()$spacing/1e3, 3), "km") else
-        paste("Point number:", nrow(pnt()$grid))
+        if(input$mode=="Fixed spacing")
+          paste("Point number:", nrow(pnt()$grid))
   })
   
   output$locationdata.csv <- downloadHandler(
