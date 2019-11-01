@@ -42,7 +42,12 @@ boundary <- getXMLcoords(bouKML)
 areaPolygon(boundary)/1e6 #area within the boundary in km2
 
 #Create a grid with n points within the boundary...
-pnts1 <- makegrid(boundary, 0)
+debug(makegrid.s)
+pnts1 <- makegrid(boundary, space=150, rotation = -40)
+with(boundary, plot(long, lat, type="l"))
+with(pnts1$grid, points(long, lat))
+par(mfrow=c(1,1))
+
 pnts1$spacing #point spacing in m
 #...or create grid with fixed 150 m spacing...
 pnts2 <- makegrid(basemap1, boundary, space=150)
