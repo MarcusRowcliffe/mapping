@@ -77,9 +77,14 @@ server <- function(input, output, session) {
     leaflet() %>%
       setView(mean(bdy()$long), mean(bdy()$lat), 10) %>%
       fitBounds(lng[1], lat[1], lng[2], lat[2]) %>% 
-      addCircles(pnt()$grid$long, pnt()$grid$lat) %>%
       addPolygons(bdy()$long, bdy()$lat, fill=FALSE) %>%
       addTiles()
+  })
+  
+  observe({
+    leafletProxy("map") %>%
+      clearMarkers() %>%
+      addCircleMarkers(pnt()$grid$long, pnt()$grid$lat, radius=2.5, weight=2)
   })
   
   output$area <- renderText({
