@@ -7,18 +7,15 @@ ui <- fluidPage(
   
   sidebarLayout(
     sidebarPanel(
-p("This app generates a regular grid of points with randomised starting point within a boundary. 
-  The boundary must be supplied as a .kml polygon file, which can be created in Google Earth Pro:"),
-p("1. Zoom to your region of interest"),
-p("2. Right-click on My Places in the Places pane -> Add -> Polygon"),
-p("3. Enter a name and digitise your site boundary on the map -> OK"),
-p("4. Right-click on the resulting polygon in the Places pane -> Save Place As -> 
-  choose directory, enter a file name and select Save as type Kml (*.kml) -> Save"),
-p("Once the boundary polygon has been uploaded you can generate and inspect a grid of points by 
-  clicking the Generate grid button. You can then download the point long/lat locations by clicking 
-  the download button."),
-p(), tags$hr(), p(),
-
+      p("This app generates a regular grid of points with a randomised 
+        starting point within a boundary. The boundary must be supplied 
+        as a .kml polygon file (click the ? button below for instructions 
+        on how to do this in Google Earth Pro). Once the boundary polygon 
+        has been uploaded you can generate and inspect a grid of points by 
+        clicking the Generate grid button. You can then download the point 
+        long/lat locations by clicking the download button."),
+      actionButton("howtodig", "?"),
+      p(), tags$hr(), p(),
       fileInput("file", "Choose a kml File", multiple = FALSE, accept = ".kml"),
       radioButtons("mode", NULL, list("Fixed number", "Fixed spacing"), inline=TRUE),
       fluidRow(column(4, conditionalPanel(condition = "input.mode=='Fixed number'",
@@ -42,6 +39,18 @@ p(), tags$hr(), p(),
 )
 
 server <- function(input, output, session) {
+  observeEvent(input$howtodig, {
+    showModal(modalDialog(
+      p("1. Zoom to your region of interest"),
+      p("2. Right-click on My Places in the Places pane -> Add -> Polygon"),
+      p("3. Enter a name and digitise your site boundary on the map -> OK"),
+      p("4. Right-click on the resulting polygon in the Places pane -> Save Place As -> 
+        choose directory, enter a file name and select Save as type Kml (*.kml) -> Save"),
+      title="How to create and export a polygon kml file in Google Earth Pro",
+      size="s", easyClose = TRUE, footer = NULL
+    ))
+  })
+  
   bdy <- reactive({
     req(input$file)
     res <- getXMLcoords(input$file$datapath)
