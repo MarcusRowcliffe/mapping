@@ -93,7 +93,7 @@ server <- function(input, output, session) {
   
   output$space <- renderText({
     if(input$mode=="Fixed number")
-      paste("Point spacing:", round(pnt()$spacing/1e3, 2), "km") else
+      paste("Point spacing:", round(pnt()$spacing/1e3, 3), "km") else
         paste("Point number:", nrow(pnt()$grid))
   })
   
