@@ -56,7 +56,7 @@ server <- function(input, output, session) {
     res <- getXMLcoords(input$file$datapath)
     rbind(res, res[1, ])
   })
-  
+
   pnt <- eventReactive(input$go, {
     if(input$mode=="Fixed number"){
       n <- round(input$npnts)
@@ -69,6 +69,8 @@ server <- function(input, output, session) {
           return(makegrid(bdy(), space=s*1000, rotation=input$rotn))
       }
   })
+  
+  observeEvent(input$mode, {pnt <- NULL})
   
   output$map <- renderLeaflet({
     rng <- apply(bdy(), 2, range)
