@@ -1,8 +1,10 @@
 library(shiny)
+library(shinyjs)
 library(leaflet)
 source("mapping.r")
 
 ui <- fluidPage(
+  useShinyjs(),
   titlePanel("Grid maker"),
   
   sidebarLayout(
@@ -10,27 +12,23 @@ ui <- fluidPage(
       p("This app generates a regular grid of points with a randomised 
         starting point within a boundary. The boundary must be supplied 
         as a .kml polygon file (click the KML Help button below for instructions 
-        on how to do this in Google Earth Pro). Once the boundary polygon 
+        on how to create these in Google Earth Pro). Once the boundary polygon 
         has been uploaded you can generate and inspect a grid of points by 
         clicking the Generate grid button. You can then download the point 
         long/lat locations by clicking the download button."),
       actionButton("howtodig", "KML Help"),
       p(), tags$hr(), p(),
       fileInput("file", "Choose a kml File", multiple = FALSE, accept = ".kml"),
-      radioButtons("mode", NULL, list("Fixed number", "Fixed spacing"), inline=TRUE),
-      fluidRow(column(4, conditionalPanel(condition = "input.mode=='Fixed number'",
-                                          numericInput("npnts", "Number of points", 50, step=1)),
-                      conditionalPanel(condition = "input.mode=='Fixed spacing'",
-                                       numericInput("spcng", "Point spacing (km)", 1))),
-               column(8, sliderInput("rotn", "Grid orientation", -45, 45, 0))
-               ),
-      fluidRow(
-        column(6, actionButton("go", "Generate grid")),
-        downloadButton("locationdata.csv", "Download locations")
-      ),
-      tags$hr(),
       textOutput("area"),
-      textOutput("info")
+      tags$hr(),
+      radioButtons("mode", NULL, list("Fixed number", "Fixed spacing"), inline=TRUE),
+      fluidRow(column(4, numericInput("npnts", "Number of points", 50, step=1)),
+               column(4, numericInput("spcng", "Point spacing (km)", 1, step=0.1))
+               ),
+      sliderInput("rotn", "Grid orientation", -45, 45, 0),
+      actionButton("go", "Generate grid"),
+      tags$hr(),
+      downloadButton("locationdata.csv", "Download locations")
     ),
     mainPanel(
       leafletOutput("map", height=700)
@@ -49,6 +47,16 @@ server <- function(input, output, session) {
       title="How to create and export a polygon kml file in Google Earth Pro",
       easyClose = TRUE, footer = NULL
     ))
+  })
+  
+  observeEvent(input$mode, {
+    if(input$mode=="Fixed number"){
+      enable("npnts")
+      disable("spcng")
+    } else if(input$mode=="Fixed spacing"){
+      enable("spcng")
+      disable("npnts")
+    }
   })
   
   bdy <- reactive({
@@ -93,13 +101,6 @@ server <- function(input, output, session) {
   
   output$area <- renderText({
     paste("Covered area:", round(areaPolygon(bdy())/1e6, 3), "sq km")
-  })
-  
-  output$info <- renderText({
-    if(input$mode=="Fixed number")
-      paste("Point spacing:", round(pnt()$spacing/1e3, 3), "km") else
-        if(input$mode=="Fixed spacing")
-          paste("Point number:", nrow(pnt()$grid))
   })
   
   output$locationdata.csv <- downloadHandler(
