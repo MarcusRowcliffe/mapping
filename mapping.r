@@ -55,12 +55,32 @@ addscale <- function(map, label, metres, x=0, y=-0.1, offset=0.05, ...){
   text(mean(xx), yy+offset*map$xyrng$y, label, xpd=T, ...)
 }
 
-#Takes a dataframe of long/lat data and returns the corner co-ordinates in both long/lat and x/y
-makemap <- function(dat){
+#Takes a dataframe of long/lat data (dat) and returns the 
+# corner co-ordinates in both long/lat and x/y,
+# with x/y coords in m from the origin of ref (dat itself by default)
+makemap <- function(dat, ref=dat){
+  orig <- data.frame(long=min(ref$long), lat=min(ref$lat))
   rng <- data.frame(apply(dat,2,range))
-  xyrng <- as.data.frame(rbind(0, c(distm(rng[1,], matrix(as.matrix(rng)[c(2,1,3,4)], nrow=2)))))
+  xyrng <- data.frame(t(sapply(1:2, function(i) 
+    c(geosphere::distm(c(orig$long, rng$lat[i]), rng[i,]),
+      geosphere::distm(c(rng$long[i], orig$lat), rng[i,]))
+  )))
   names(xyrng) <- c("x","y")
   list(cnr=rng, xycnr=xyrng)
+}
+
+#Given dataframes of x,y co-ordinates, returns a logical vector indicating
+# whether each of the xy points is within polygon xypoly. xypoly can be a
+# list of polygons, in which case the result indicates whether xy points
+# are within the first polygon but not in subsequent polygons.
+isinpoly <- function(xy, xypoly){
+  inlist <- lapply(xypoly, function(poly, xy) SDMTools::pnt.in.poly(xy, poly), xy)
+  isin <- inlist[[1]]$pip
+  if(length(inlist)>1){
+    isout <- 1-sapply(inlist[-1], function(x) x$pip)
+    isin <- isin * apply(isout, 1, prod)
+  }
+  isin==1
 }
 
 #Project coords dataframe either way between xy and longlat given map created with loadmap
@@ -135,25 +155,32 @@ rotate <- function(coords, angle, centroid=NULL){
   res
 }
 
-#Generate a grid of points on a map within bounds given by poly and with given spacing
-#offset shifts grid starting point by given proportions of spacingl; default is bottom left corner of bounding box
+#Generate a grid of points on a map within bounds given by poly and 
+# with given spacing; poly can be a list of polygons, in which case points
+# are selected within the first element, but not in any of the others.
+
 #rotation is an optional rotation angle; default aligns grid N-S/E-W
 makegrid.s <- function(spacing, poly, rotation=0){
-  map <- makemap(poly)
-  xypoly <- rotate(project(poly, map), -rotation)
-  x <- seq(min(xypoly$x), max(xypoly$x), spacing) + runif(1)*spacing
-  y <- seq(min(xypoly$y), max(xypoly$y), spacing) + runif(1)*spacing
+  if(!class(poly)=="list") poly <- list(poly)
+  xypoly <- lapply(poly, 
+                   function(poly, base) rotate(project(poly, makemap(poly, base)), -rotation),
+                   poly[[1]]
+  )
+  x <- seq(min(xypoly[[1]]$x), max(xypoly[[1]]$x), spacing) + runif(1)*spacing
+  y <- seq(min(xypoly[[1]]$y), max(xypoly[[1]]$y), spacing) + runif(1)*spacing
   xy <- expand.grid(x, y)
   names(xy) <- c("x", "y")
-  inout <- pnt.in.poly(xy, xypoly)
-  xy <- rotate(xy[inout$pip==1, ], rotation, apply(xypoly, 2, mean))
-  list(grid=project(xy, map, "longlat"), spacing=spacing)
+  i <- isinpoly(xy, xypoly)
+  xy <- rotate(xy[i, ], rotation, apply(xypoly[[1]], 2, mean))
+  list(grid=project(xy, makemap(poly[[1]]), "longlat"), spacing=spacing)
 }
 
-#Generate a grid of n points on a map within bounds given by poly
-#rotation is an optional rotation angle; default aligns grid N-S/E-W
+#Generate a grid of n points on a map within bounds given by poly.
+# As for makegrid.s, poly can be a list (see above).
+# Rotation is an optional rotation angle; default aligns grid N-S/E-W
 makegrid.n <- function(n, poly, rotation=0){
-  rng <- data.frame(apply(poly,2,range))
+  if(!class(poly)=="list") poly <- list(poly)
+  rng <- data.frame(apply(poly[[1]], 2, range))
   xyrng <- as.data.frame(rbind(0, c(distm(rng[1,], matrix(as.matrix(rng)[c(2,1,3,4)], nrow=2)))))
   spc <- sqrt(prod(apply(xyrng, 2, diff))/n)
   repeat{
