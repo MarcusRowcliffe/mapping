@@ -5,20 +5,18 @@ source("mapping.r")
 
 ui <- fluidPage(
   useShinyjs(),
-  titlePanel("Grid maker"),
+  titlePanel("GridMaker"),
   
   sidebarLayout(
     sidebarPanel(
-      p("This app generates a regular grid of points with a randomised 
-        starting point within a boundary. The boundary must be supplied 
-        as a .kml polygon file (click the KML Help button below for instructions 
-        on how to create these in Google Earth Pro). Once the boundary polygon 
-        has been uploaded you can generate and inspect a grid of points by 
-        clicking the Generate grid button. You can then download the point 
-        long/lat locations by clicking the download button."),
-      actionButton("howtodig", "KML Help"),
-      p(), tags$hr(), p(),
-      fileInput("file", "Choose a kml File", multiple = FALSE, accept = ".kml"),
+      actionButton("info", "Click for app info"),
+      tags$hr(),
+      fileInput("bfile", "Choose bounday kml file(s)", multiple = TRUE, accept = ".kml"),
+      checkboxInput("holes", "Add polygon holes"),
+      conditionalPanel(
+        condition = "input.holes==true", 
+        fileInput("hfile", "Choose hole kml file(s)", multiple = TRUE, accept = ".kml")
+      ),
       textOutput("area"),
       tags$hr(),
       radioButtons("mode", NULL, list("Fixed number", "Fixed spacing"), inline=TRUE),
@@ -37,14 +35,24 @@ ui <- fluidPage(
 )
 
 server <- function(input, output, session) {
-  observeEvent(input$howtodig, {
+  observeEvent(input$info, {
     showModal(modalDialog(
+      p("This app generates a regular grid of points with a randomised 
+        starting point within one or more boundaries, optionally with holes. 
+        The boundaries and holes must be supplied as .kml polygon files 
+        (see below for instructions on creating these). Once the boundary and 
+        any hole polygons have been uploaded, and number, spacing and/or 
+        orientation of points adjusted to taste, you can generate and inspect a 
+        randomised grid of points by clicking the Generate grid button. You can then 
+        download the point long/lat locations by clicking the download button."),
+      p(),
+      p("To create kml files in Google Earth Pro:"),
       p("1. Zoom to your region of interest"),
       p("2. Right-click on My Places in the Places pane -> Add -> Polygon"),
       p("3. Enter a name and digitise your site boundary on the map -> OK"),
       p("4. Right-click on the resulting polygon in the Places pane -> Save Place As -> 
         choose directory, enter a file name and select Save as type Kml (*.kml) -> Save"),
-      title="How to create and export a polygon kml file in Google Earth Pro",
+      title="Purpose and use of the GridMaker app",
       easyClose = TRUE, footer = NULL
     ))
   })
@@ -59,12 +67,19 @@ server <- function(input, output, session) {
     }
   })
   
+#  bdy <- reactive({
+#    req(input$file)
+#    res <- getXMLcoords(input$file$datapath)
+#    rbind(res, res[1, ])
+#  })
   bdy <- reactive({
-    req(input$file)
-    res <- getXMLcoords(input$file$datapath)
-    rbind(res, res[1, ])
+    req(input$bfile)
+    lapply(input$bfile$datapath, getXMLcoords)
   })
-
+  hol <- reactive({
+    lapply(input$hfile$datapath, getXMLcoords)
+  })
+  
   pnt <- eventReactive(input$go, {
     if(input$mode=="Fixed number"){
       n <- input$npnts
@@ -82,15 +97,24 @@ server <- function(input, output, session) {
       }
   })
   
+#  output$map <- renderLeaflet({
+#    rng <- apply(bdy(), 2, range)
+#    lng <- rng[,"long"]
+#    lat <- rng[,"lat"]
+#    leaflet() %>%
+#      setView(mean(bdy()$long), mean(bdy()$lat), 10) %>%
+#      fitBounds(lng[1], lat[1], lng[2], lat[2]) %>% 
+#      addPolygons(bdy()$long, bdy()$lat, fill=FALSE) %>%
+#      addTiles()
+#  })
   output$map <- renderLeaflet({
-    rng <- apply(bdy(), 2, range)
-    lng <- rng[,"long"]
-    lat <- rng[,"lat"]
-    leaflet() %>%
-      setView(mean(bdy()$long), mean(bdy()$lat), 10) %>%
-      fitBounds(lng[1], lat[1], lng[2], lat[2]) %>% 
-      addPolygons(bdy()$long, bdy()$lat, fill=FALSE) %>%
-      addTiles()
+    mp <- leaflet() %>% addTiles()
+    for(i in 1:length(bdy())) 
+      mp <- mp %>% addPolygons(bdy()[[i]]$long, bdy()[[i]]$lat, fill=FALSE)
+    if(length(hol())>0)
+      for(i in 1:length(hol()))
+        mp <- mp %>% addPolygons(hol()[[i]]$long, hol()[[i]]$lat, fill=FALSE)
+    mp
   })
   
   observe({
@@ -100,7 +124,9 @@ server <- function(input, output, session) {
   })
   
   output$area <- renderText({
-    paste("Covered area:", round(areaPolygon(bdy())/1e6, 3), "sq km")
+    A <- sum(unlist(lapply(bdy(), areaPolygon)))/1e6
+    if(length(hol())>0) A <- A-sum(unlist(lapply(hol(), areaPolygon)))/1e6
+    paste("Covered area:", round(A, 3), "sq km")
   })
   
   output$locationdata.csv <- downloadHandler(
