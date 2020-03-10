@@ -2,6 +2,7 @@ require(XML) #for xmlToList and xmlParse
 require(jpeg) #for readJPEG and rasterImage
 require(geosphere) #for distm and areaPolygon
 require(SDMTools) #for pnt.in.poly
+require(data.table) #for rbindlist
 
 
 #Extract the co-ordinates from an xml or kml shapefile named in text string file 
@@ -72,15 +73,11 @@ makemap <- function(dat, ref=dat){
 #Given dataframes of x,y co-ordinates, returns a logical vector indicating
 # whether each of the xy points is within polygon xypoly. xypoly can be a
 # list of polygons, in which case the result indicates whether xy points
-# are within the first polygon but not in subsequent polygons.
+# are within any of the polygon.
 isinpoly <- function(xy, xypoly){
   inlist <- lapply(xypoly, function(poly, xy) SDMTools::pnt.in.poly(xy, poly), xy)
-  isin <- inlist[[1]]$pip
-  if(length(inlist)>1){
-    isout <- 1-sapply(inlist[-1], function(x) x$pip)
-    isin <- isin * apply(isout, 1, prod)
-  }
-  isin==1
+  isin <- matrix(unlist(lapply(inlist, "[", ,"pip")), ncol=length(inlist))
+  apply(isin, 1, any)
 }
 
 #Project coords dataframe either way between xy and longlat given map created with loadmap
@@ -155,56 +152,57 @@ rotate <- function(coords, angle, centroid=NULL){
   res
 }
 
-#Generate a grid of points on a map within bounds given by poly and 
-# with given spacing; poly can be a list of polygons, in which case points
-# are selected within the first element, but not in any of the others.
-
-#rotation is an optional rotation angle; default aligns grid N-S/E-W
-makegrid.s <- function(spacing, poly, rotation=0){
+#Generate a grid of points with given spacing (in m) within bounds given by poly, 
+# optionally excluding holes, given by hole. Poly and hole must be either dataframes
+# with columns long and lat, or lists of such dataframes, in which case points
+# are selected across all polygons excluding all holes.
+# rotation is an optional grid rotation angle; default aligns grid N-S/E-W.
+makegrid.s <- function(spacing, poly, hole=NULL, rotation=45){
   if(!class(poly)=="list") poly <- list(poly)
-  xypoly <- lapply(poly, 
-                   function(poly, base) rotate(project(poly, makemap(poly, base)), -rotation),
-                   poly[[1]]
-  )
-  x <- seq(min(xypoly[[1]]$x), max(xypoly[[1]]$x), spacing) + runif(1)*spacing
-  y <- seq(min(xypoly[[1]]$y), max(xypoly[[1]]$y), spacing) + runif(1)*spacing
+  allpoly <- data.table::rbindlist(poly)
+  map <- makemap(allpoly)
+  xypoly <- lapply(poly, project, map)
+  cent <- apply(data.table::rbindlist(xypoly), 2, mean)
+  xypoly <- lapply(xypoly, rotate, -rotation, cent)
+  allxy <- data.table::rbindlist(xypoly)
+  rng <- apply(allxy, 2, range)
+  x <- seq(rng[1,"x"], rng[2,"x"], spacing) + runif(1)*spacing
+  y <- seq(rng[1,"y"], rng[2,"y"], spacing) + runif(1)*spacing
   xy <- expand.grid(x, y)
   names(xy) <- c("x", "y")
   i <- isinpoly(xy, xypoly)
-  xy <- rotate(xy[i, ], rotation, apply(xypoly[[1]], 2, mean))
-  list(grid=project(xy, makemap(poly[[1]]), "longlat"), spacing=spacing)
+  if(!is.null(hole)){
+    if(!class(hole)=="list") hole <- list(hole)
+    xyhole <- lapply(hole, project, map)
+    xyhole <- lapply(xyhole, rotate, -rotation, cent)
+    i <- i & !isinpoly(xy, xyhole)
+  }
+  xy <- rotate(xy[i, ], rotation, cent)
+  list(grid=project(xy, map, "longlat"), spacing=spacing)
 }
 
-#Generate a grid of n points on a map within bounds given by poly.
-# As for makegrid.s, poly can be a list (see above).
-# Rotation is an optional rotation angle; default aligns grid N-S/E-W
-makegrid.n <- function(n, poly, rotation=0){
+#Generate a grid of n points on a map within bounds given by poly excluding any hole(s).
+# As for makegrid.s, poly and hole can be lists for multiple polygons (see above).
+# Rotation is an optional rotation angle; default aligns grid N-S/E-W.
+makegrid.n <- function(n, poly, hole=NULL, rotation=0){
   if(!class(poly)=="list") poly <- list(poly)
   rng <- data.frame(apply(poly[[1]], 2, range))
   xyrng <- as.data.frame(rbind(0, c(distm(rng[1,], matrix(as.matrix(rng)[c(2,1,3,4)], nrow=2)))))
   spc <- sqrt(prod(apply(xyrng, 2, diff))/n)
   repeat{
-    grd <- makegrid.s(spc, poly, rotation)
+    grd <- makegrid.s(spc, poly, hole, rotation)
     nr <- nrow(grd$grid)
     if(nr==n) break else spc <- spc * (nr/n)^0.5
   }
   grd
 }
 
-makegrid <- function(boundary, n=NULL, space=NULL, rotation=0){
+makegrid <- function(boundary, hole=NULL, n=NULL, space=NULL, rotation=0){
   if(is.null(n) & is.null(space)) stop("Either n or space argument must be given")
   if(!is.null(n) & !is.null(space)) stop("Either n or space argument must be given, not both")
   if(is.null(n)) 
-    makegrid.s(space, boundary, rotation) else
-    makegrid.n(n, boundary, rotation)
-}
-
-#Returns binary flagging whether long/lat points are within long/lat a boundary (poly)
-is.in <- function(points, poly){
-  pt <- points$grid [,c("long","lat")]
-  xy <- project(pt, makemap(poly))/1000
-  bxy <- project(poly, makemap(poly))/1000
-  pnt.in.poly(xy, bxy)$pip
+    makegrid.s(space, boundary, hole, rotation) else
+    makegrid.n(n, boundary, hole, rotation)
 }
 
 exportgrid <- function(points, file)
