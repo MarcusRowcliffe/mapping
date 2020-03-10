@@ -67,46 +67,44 @@ server <- function(input, output, session) {
     }
   })
   
-#  bdy <- reactive({
-#    req(input$file)
-#    res <- getXMLcoords(input$file$datapath)
-#    rbind(res, res[1, ])
-#  })
   bdy <- reactive({
     req(input$bfile)
     lapply(input$bfile$datapath, getXMLcoords)
   })
+  
+  hf <- reactiveValues(
+    loaded = FALSE
+  )
+  
+  observeEvent(input$hfile, {
+    hf$loaded <- TRUE
+  })
+  
+  observeEvent(input$holes==FALSE, {
+    hf$loaded <- FALSE
+  })
+  
   hol <- reactive({
-    lapply(input$hfile$datapath, getXMLcoords)
+    if (hf$loaded) lapply(input$hfile$datapath, getXMLcoords) else NULL
   })
   
   pnt <- eventReactive(input$go, {
     if(input$mode=="Fixed number"){
       n <- input$npnts
       if(is.na(n) | n<2) res <- NULL else
-        res <- makegrid(bdy(), n, rotation=input$rotn)
+        res <- makegrid(bdy(), hol(), n, rotation=input$rotn)
       updateNumericInput(session, "spcng", value=round(res$spacing/1000, 3))
       res
     } else
       if(input$mode=="Fixed spacing"){
         s <- input$spcng
         if(is.na(s) | s<=0) res <- NULL else
-          res <- makegrid(bdy(), space=s*1000, rotation=input$rotn)
+          res <- makegrid(bdy(), hol(), space=s*1000, rotation=input$rotn)
         updateNumericInput(session, "npnts", value=nrow(res$grid))
         res
       }
   })
   
-#  output$map <- renderLeaflet({
-#    rng <- apply(bdy(), 2, range)
-#    lng <- rng[,"long"]
-#    lat <- rng[,"lat"]
-#    leaflet() %>%
-#      setView(mean(bdy()$long), mean(bdy()$lat), 10) %>%
-#      fitBounds(lng[1], lat[1], lng[2], lat[2]) %>% 
-#      addPolygons(bdy()$long, bdy()$lat, fill=FALSE) %>%
-#      addTiles()
-#  })
   output$map <- renderLeaflet({
     mp <- leaflet() %>% addTiles()
     for(i in 1:length(bdy())) 
