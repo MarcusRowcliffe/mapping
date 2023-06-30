@@ -9,7 +9,8 @@ ui <- fluidPage(
   
   sidebarLayout(
     sidebarPanel(
-      actionButton("info", "Click for app info"),
+      p("App for generating systematic survey grids. Click App info for useage instructions."),
+      actionButton("info", "App info"),
       tags$hr(),
       fileInput("bfile", "Choose bounday kml file(s)", multiple = TRUE, accept = ".kml"),
       checkboxInput("holes", "Add polygon holes"),
@@ -38,13 +39,14 @@ server <- function(input, output, session) {
   observeEvent(input$info, {
     showModal(modalDialog(
       p("This app generates a regular grid of points with a randomised 
-        starting point within one or more boundaries, optionally with holes. 
-        The boundaries and holes must be supplied as .kml polygon files 
-        (see below for instructions on creating these). Once the boundary and 
-        any hole polygons have been uploaded, and number, spacing and/or 
-        orientation of points adjusted to taste, you can generate and inspect a 
-        randomised grid of points by clicking the Generate grid button. You can then 
-        download the point long/lat locations by clicking the download button."),
+        starting point within one or more boundaries, optionally with one or more 
+        holes within the boundaries. The boundaries and holes must be supplied as 
+        .kml polygon files (see below for instructions on creating these). Once 
+        the boundary and any hole polygons have been uploaded, and number, spacing 
+        and/or orientation of points have been adjusted to taste, you can generate 
+        and inspect a randomised grid of points by clicking the Generate grid button. 
+        You can then download the point long/lat locations by clicking the download 
+        button."),
       p(),
       p("To create kml files in Google Earth Pro:"),
       p("1. Zoom to your region of interest"),
@@ -69,7 +71,7 @@ server <- function(input, output, session) {
   
   bdy <- reactive({
     req(input$bfile)
-    lapply(input$bfile$datapath, getXMLcoords)
+    lapply(input$bfile$datapath, getKMLcoords)
   })
   
   hf <- reactiveValues(
@@ -85,7 +87,7 @@ server <- function(input, output, session) {
   })
   
   hol <- reactive({
-    if (hf$loaded) lapply(input$hfile$datapath, getXMLcoords) else NULL
+    if (hf$loaded) lapply(input$hfile$datapath, getKMLcoords) else NULL
   })
   
   pnt <- eventReactive(input$go, {

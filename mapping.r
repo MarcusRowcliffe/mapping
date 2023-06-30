@@ -1,21 +1,16 @@
-require(XML) #for xmlToList and xmlParse
 require(jpeg) #for readJPEG and rasterImage
 require(geosphere) #for distm and areaPolygon
-require(SDMTools) #for pnt.in.poly
-require(data.table) #for rbindlist
+require(data.table) #for rbindlist (switch to dplyr::bind_rows?)
+require(sf) #for read_sf and st_coordinates
+require(sp) #for point.in.polygon
 
-
-#Extract the co-ordinates from an xml or kml shapefile named in text string file 
-#(including path if necessary)
-getXMLcoords <- function(file){
-  dat <- unlist(xmlToList(xmlParse(file)))
-  coords <- dat[grep("coordinates", names(dat))]
-  i <- unlist(gregexpr("\t", coords))
-  j <- which(diff(i)>1)
-  coords <- substr(coords, i[j]+1, i[j+1]-3)
-  coords <- as.numeric(unlist(strsplit(coords, "[, ]+")))
-  k <- 3*(1:(length(coords)/3))
-  data.frame(long=coords[k-2], lat=coords[k-1])
+#Extract the co-ordinates from a kml shapefile named in text string file 
+#(including path if necessary) - getXMLcoords is deprecated
+getKMLcoords <- function(file){
+  dat <- sf::read_sf(file)
+  res <- as.data.frame(sf::st_coordinates(dat)[, 1:2])
+  names(res) <- c("long", "lat")
+  res
 }
 
 #Load a jpeg map file, georeferenced by long/lat of SW and NW corners from cornercsv file
@@ -75,9 +70,17 @@ makemap <- function(dat, ref=dat){
 # list of polygons, in which case the result indicates whether xy points
 # are within any of the polygon.
 isinpoly <- function(xy, xypoly){
-  inlist <- lapply(xypoly, function(poly, xy) SDMTools::pnt.in.poly(xy, poly), xy)
-  isin <- matrix(unlist(lapply(inlist, "[", ,"pip")), ncol=length(inlist))
-  apply(isin, 1, any)
+  
+  f <- function(poly)
+    sp::point.in.polygon(xy[,1], xy[,2], poly[,1], poly[,2])
+  
+  if(class(xypoly) != "list") xypoly <- list(xypoly)
+  lst <- lapply(xypoly, f)
+  df <- as.data.frame(lst)
+  apply(df, 1, any)
+#  inlist <- lapply(xypoly, function(poly, xy) SDMTools::pnt.in.poly(xy, poly), xy)
+#  isin <- matrix(unlist(lapply(inlist, "[", ,"pip")), ncol=length(inlist))
+#  apply(isin, 1, any)
 }
 
 #Project coords dataframe either way between xy and longlat given map created with loadmap
@@ -205,8 +208,9 @@ makegrid <- function(boundary, hole=NULL, n=NULL, space=NULL, rotation=0){
     makegrid.n(n, boundary, hole, rotation)
 }
 
-exportgrid <- function(points, file)
+exportgrid <- function(points, file){
   write.csv(data.frame(id=1:nrow(points$grid), points$grid), file, row.names=F)
+}
 
 #Assigns points from a grid to a given number of phases with regular stepwise progression
 #Requires that the grid is perfectly aligned N-S-E-W
