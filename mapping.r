@@ -78,9 +78,6 @@ isinpoly <- function(xy, xypoly){
   lst <- lapply(xypoly, f)
   df <- as.data.frame(lst)
   apply(df, 1, any)
-#  inlist <- lapply(xypoly, function(poly, xy) SDMTools::pnt.in.poly(xy, poly), xy)
-#  isin <- matrix(unlist(lapply(inlist, "[", ,"pip")), ncol=length(inlist))
-#  apply(isin, 1, any)
 }
 
 #Project coords dataframe either way between xy and longlat given map created with loadmap
